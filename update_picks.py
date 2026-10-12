@@ -285,10 +285,14 @@ def preview_line(preview: dict) -> str:
     return f"下一次预览（{preview['on']}，{preview['mode']}）：{names}。等下次调仓日收盘才换成这一组。"
 
 
+PAGE_PASSWORD = "Shi.20040727"
+
+
 def render(payload: dict) -> str:
     lines = "".join(f"<p class=\"lead\">{esc(line)}</p>" for line in payload["lines"])
     qqq = payload["qqq"]
     sp = payload["sp"]
+    secret = json.dumps(PAGE_PASSWORD)
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -307,6 +311,13 @@ def render(payload: dict) -> str:
     .cols {{ display:grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }}
     h2 {{ font-size:18px; font-weight:500; margin:18px 0 8px; }}
     .note {{ color:var(--muted); font-size:12px; margin:0 0 8px; line-height:1.6; }}
+    #gate {{ max-width: 420px; margin: 18vh auto 0; padding: 0 22px; }}
+    #gate h1 {{ font-size: 28px; margin-bottom: 18px; }}
+    #gate form {{ display:flex; gap:10px; }}
+    #gate input {{ flex:1; font-family: Consolas, monospace; font-size:16px; border:1px solid var(--ink); background:transparent; padding:8px 10px; color:var(--ink); }}
+    #gate button {{ font-family: inherit; font-size:16px; border:1px solid var(--ink); background:var(--ink); color:var(--bg); padding:8px 14px; cursor:pointer; }}
+    #gate .err {{ color:#9d2c2c; min-height:1.4em; margin-top:10px; }}
+    #app[hidden] {{ display:none; }}
     table {{ width:100%; border-collapse:collapse; font-size:13px; }}
     th {{ text-align:left; font-weight:500; color:var(--muted); border-bottom:1px solid var(--ink); padding:6px 4px; }}
     td {{ border-bottom:1px solid var(--line); padding:6px 4px; font-family: Consolas, "Cascadia Mono", monospace; }}
@@ -314,7 +325,15 @@ def render(payload: dict) -> str:
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div id="gate">
+    <h1>本月选股</h1>
+    <form id="lock">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="密码">
+      <button type="submit">进入</button>
+    </form>
+    <div class="err" id="err"></div>
+  </div>
+  <div class="wrap" id="app" hidden>
     <header>
       <h1>本月选股</h1>
       <div class="meta">行情 {esc(payload["asof"])}<br>每月 1 日自动更新</div>
@@ -344,6 +363,29 @@ def render(payload: dict) -> str:
       </div>
     </section>
   </div>
+  <script>
+    const PASSWORD = {secret};
+    const gate = document.getElementById("gate");
+    const app = document.getElementById("app");
+    const input = document.getElementById("pw");
+    const err = document.getElementById("err");
+    function openApp() {{
+      gate.hidden = true;
+      app.hidden = false;
+      sessionStorage.setItem("picks-ok", "1");
+    }}
+    if (sessionStorage.getItem("picks-ok") === "1") openApp();
+    document.getElementById("lock").addEventListener("submit", function (event) {{
+      event.preventDefault();
+      if (input.value === PASSWORD) {{
+        err.textContent = "";
+        openApp();
+      }} else {{
+        err.textContent = "密码不对";
+        input.select();
+      }}
+    }});
+  </script>
 </body>
 </html>
 """
@@ -389,8 +431,10 @@ def main() -> None:
         "qqq": qqq,
         "sp": sp_book,
     }
-    (DOCS / "picks.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (DOCS / "index.html").write_text(render(payload), encoding="utf-8")
+    stale = DOCS / "picks.json"
+    if stale.exists():
+        stale.unlink()
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")
     print(f"held {held_day.date()} next {nxt.date()} asof {preview_day.date()}", flush=True)
     for key in ("qqq", "sp"):
