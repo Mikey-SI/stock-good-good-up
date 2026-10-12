@@ -7,6 +7,9 @@ Same rules as the top of the local dashboard:
 """
 from __future__ import annotations
 
+import os
+from base64 import b64encode
+from hashlib import pbkdf2_hmac
 import html
 import io
 import json
@@ -306,55 +309,28 @@ def preview_line(preview: dict) -> str:
     return f"下一次预览（{preview['on']}，{preview['mode']}）：{names}。等下次调仓日收盘才换成这一组。"
 
 
-PAGE_PASSWORD = "Shi.20040727"
+def page_password() -> str:
+    value = os.environ.get("PAGE_PASSWORD", "").strip()
+    if not value:
+        raise RuntimeError("PAGE_PASSWORD is not set")
+    return value
+
+
+def encrypt_text(plain: str, password: str) -> tuple[str, str, str]:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    salt = os.urandom(16)
+    iv = os.urandom(12)
+    key = pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120000, dklen=32)
+    token = AESGCM(key).encrypt(iv, plain.encode("utf-8"), None)
+    return b64encode(salt).decode(), b64encode(iv).decode(), b64encode(token).decode()
 
 
 def render(payload: dict) -> str:
     lines = "".join(f"<p class=\"lead\">{esc(line)}</p>" for line in payload["lines"])
     qqq = payload["qqq"]
     sp = payload["sp"]
-    secret = json.dumps(PAGE_PASSWORD)
-    return f"""<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>本月选股</title>
-  <style>
-    :root {{ color-scheme: light; --bg:#f4f1ea; --ink:#1c1b19; --muted:#6f6a62; --line:#ddd6c8; }}
-    * {{ box-sizing: border-box; }}
-    body {{ margin:0; background:var(--bg); color:var(--ink); font-family: "Palatino Linotype", Palatino, "Songti SC", "SimSun", serif; }}
-    .wrap {{ max-width: 1100px; margin: 0 auto; padding: 28px 22px 64px; }}
-    header {{ display:flex; justify-content:space-between; gap:24px; align-items:flex-end; border-bottom:1px solid var(--ink); padding-bottom:14px; }}
-    h1 {{ font-size:34px; font-weight:500; margin:0; letter-spacing:0.04em; }}
-    .meta {{ color:var(--muted); font-family: Consolas, "Cascadia Mono", monospace; font-size:12px; text-align:right; }}
-    .lead {{ font-size:17px; line-height:1.75; margin:0 0 8px; }}
-    .cols {{ display:grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }}
-    h2 {{ font-size:18px; font-weight:500; margin:18px 0 8px; }}
-    .note {{ color:var(--muted); font-size:12px; margin:0 0 8px; line-height:1.6; }}
-    #gate {{ max-width: 420px; margin: 18vh auto 0; padding: 0 22px; }}
-    #gate h1 {{ font-size: 28px; margin-bottom: 18px; }}
-    #gate form {{ display:flex; gap:10px; }}
-    #gate input {{ flex:1; font-family: Consolas, monospace; font-size:16px; border:1px solid var(--ink); background:transparent; padding:8px 10px; color:var(--ink); }}
-    #gate button {{ font-family: inherit; font-size:16px; border:1px solid var(--ink); background:var(--ink); color:var(--bg); padding:8px 14px; cursor:pointer; }}
-    #gate .err {{ color:#9d2c2c; min-height:1.4em; margin-top:10px; }}
-    #app[hidden] {{ display:none; }}
-    table {{ width:100%; border-collapse:collapse; font-size:13px; }}
-    th {{ text-align:left; font-weight:500; color:var(--muted); border-bottom:1px solid var(--ink); padding:6px 4px; }}
-    td {{ border-bottom:1px solid var(--line); padding:6px 4px; font-family: Consolas, "Cascadia Mono", monospace; }}
-    @media (max-width: 860px) {{ .cols {{ grid-template-columns: 1fr; }} header {{ display:block; }} .meta {{ text-align:left; margin-top:8px; }} }}
-  </style>
-</head>
-<body>
-  <div id="gate">
-    <h1>本月选股</h1>
-    <form id="lock">
-      <input id="pw" type="password" autocomplete="current-password" placeholder="密码">
-      <button type="submit">进入</button>
-    </form>
-    <div class="err" id="err"></div>
-  </div>
-  <div class="wrap" id="app" hidden>
+    inner = f"""
     <header>
       <h1>本月选股</h1>
       <div class="meta">行情 {esc(payload["asof"])}<br>每个交易日收盘后自动更新</div>
@@ -383,25 +359,80 @@ def render(payload: dict) -> str:
         </div>
       </div>
     </section>
+"""
+    salt, iv, token = encrypt_text(inner, page_password())
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本月选股</title>
+  <style>
+    :root {{ color-scheme: light; --bg:#f4f1ea; --ink:#1c1b19; --muted:#6f6a62; --line:#ddd6c8; }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin:0; background:var(--bg); color:var(--ink); font-family: "Palatino Linotype", Palatino, "Songti SC", "SimSun", serif; }}
+    .wrap {{ max-width: 1100px; margin: 0 auto; padding: 28px 22px 64px; }}
+    header {{ display:flex; justify-content:space-between; gap:24px; align-items:flex-end; border-bottom:1px solid var(--ink); padding-bottom:14px; }}
+    h1 {{ font-size:34px; font-weight:500; margin:0; letter-spacing:0.04em; }}
+    .meta {{ color:var(--muted); font-family: Consolas, "Cascadia Mono", monospace; font-size:12px; text-align:right; }}
+    .lead {{ font-size:17px; line-height:1.75; margin:0 0 8px; }}
+    .cols {{ display:grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }}
+    h2 {{ font-size:18px; font-weight:500; margin:18px 0 8px; }}
+    .note {{ color:var(--muted); font-size:12px; margin:0 0 8px; line-height:1.6; }}
+    #gate {{ max-width: 420px; margin: 18vh auto 0; padding: 0 22px; }}
+    #gate h1 {{ font-size: 28px; margin-bottom: 18px; }}
+    #gate form {{ display:flex; gap:10px; }}
+    #gate input {{ flex:1; font-family: Consolas, monospace; font-size:16px; border:1px solid var(--ink); background:transparent; padding:8px 10px; color:var(--ink); }}
+    #gate button {{ font-family: inherit; font-size:16px; border:1px solid var(--ink); background:var(--ink); color:var(--bg); padding:8px 14px; cursor:pointer; }}
+    #gate .err {{ color:#9d2c2c; min-height:1.4em; margin-top:10px; }}
+    table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+    th {{ text-align:left; font-weight:500; color:var(--muted); border-bottom:1px solid var(--ink); padding:6px 4px; }}
+    td {{ border-bottom:1px solid var(--line); padding:6px 4px; font-family: Consolas, "Cascadia Mono", monospace; }}
+    @media (max-width: 860px) {{ .cols {{ grid-template-columns: 1fr; }} header {{ display:block; }} .meta {{ text-align:left; margin-top:8px; }} }}
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <h1>本月选股</h1>
+    <form id="lock">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="密码">
+      <button type="submit">进入</button>
+    </form>
+    <div class="err" id="err"></div>
   </div>
+  <div class="wrap" id="app" hidden></div>
   <script>
-    const PASSWORD = {secret};
+    const PACK = {{ salt: "{salt}", iv: "{iv}", data: "{token}" }};
     const gate = document.getElementById("gate");
     const app = document.getElementById("app");
     const input = document.getElementById("pw");
     const err = document.getElementById("err");
-    function openApp() {{
+    function b64(s) {{
+      const bin = atob(s);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }}
+    async function unlock(password) {{
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        {{ name: "PBKDF2", salt: b64(PACK.salt), iterations: 120000, hash: "SHA-256" }},
+        base,
+        {{ name: "AES-GCM", length: 256 }},
+        false,
+        ["decrypt"]
+      );
+      const clear = await crypto.subtle.decrypt({{ name: "AES-GCM", iv: b64(PACK.iv) }}, key, b64(PACK.data));
+      app.innerHTML = new TextDecoder().decode(clear);
       gate.hidden = true;
       app.hidden = false;
-      sessionStorage.setItem("picks-ok", "1");
     }}
-    if (sessionStorage.getItem("picks-ok") === "1") openApp();
-    document.getElementById("lock").addEventListener("submit", function (event) {{
+    document.getElementById("lock").addEventListener("submit", async function (event) {{
       event.preventDefault();
-      if (input.value === PASSWORD) {{
-        err.textContent = "";
-        openApp();
-      }} else {{
+      err.textContent = "";
+      try {{
+        await unlock(input.value);
+      }} catch (e) {{
         err.textContent = "密码不对";
         input.select();
       }}
@@ -410,7 +441,6 @@ def render(payload: dict) -> str:
 </body>
 </html>
 """
-
 
 def main() -> None:
     print("universes", flush=True)
