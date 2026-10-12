@@ -1,0 +1,181 @@
+{
+  "asof": "2026-10-09",
+  "generated_at": "2026-10-12 10:09",
+  "held_on": "2026-09-30",
+  "next_on": "2026-11-30",
+  "sleeve": "2026年10月",
+  "lines": [
+    "每个月只调一次仓：美股该月最后一个交易日收盘后换。月中保持不动。",
+    "现在拿的是2026年10月这一档。它在 2026年9月30日 美股收盘选出，拿到 2026年11月30日 美股收盘。",
+    "下一次调仓是 2026年11月30日 美股收盘之后，北京时间大约是第二天早上。在那之前，按「现在应该拿着」买。",
+    "行情用到 2026-10-09。下一次预览要等 2026年11月30日 的收盘价出来才生效。"
+  ],
+  "qqq": {
+    "title": "纳指100",
+    "n": 99,
+    "held": {
+      "mode": "进攻",
+      "on": "2026-09-30",
+      "bull": true,
+      "bench": "QQQ",
+      "bench_px": 739.77,
+      "sma": 667.27,
+      "rows": [
+        {
+          "ticker": "MU",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.8378226379351177
+        },
+        {
+          "ticker": "MRNA",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.7625984251968507
+        },
+        {
+          "ticker": "ALAB",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.7096715328467158
+        },
+        {
+          "ticker": "SNDK",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.4659237573582646
+        },
+        {
+          "ticker": "PANW",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.3835454091816368
+        }
+      ]
+    },
+    "preview": {
+      "mode": "进攻",
+      "on": "2026-10-09",
+      "bull": true,
+      "bench": "QQQ",
+      "bench_px": 751.27,
+      "sma": 672.18,
+      "rows": [
+        {
+          "ticker": "MRNA",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.6809262166405023
+        },
+        {
+          "ticker": "MU",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.3239021374735493
+        },
+        {
+          "ticker": "PANW",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.173569639761125
+        },
+        {
+          "ticker": "DDOG",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.1042042327038057
+        },
+        {
+          "ticker": "FTNT",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.0710560625814862
+        }
+      ]
+    }
+  },
+  "sp": {
+    "title": "标普500",
+    "n": 497,
+    "held": {
+      "mode": "进攻",
+      "on": "2026-09-30",
+      "bull": true,
+      "bench": "SPY",
+      "bench_px": 762.63,
+      "sma": 719.62,
+      "rows": [
+        {
+          "ticker": "DD",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.9386462882096072
+        },
+        {
+          "ticker": "MU",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.8378226379351177
+        },
+        {
+          "ticker": "DELL",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.7783464327057819
+        },
+        {
+          "ticker": "MRNA",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.7625984251968507
+        },
+        {
+          "ticker": "SNDK",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.4659237573582646
+        }
+      ]
+    },
+    "preview": {
+      "mode": "进攻",
+      "on": "2026-10-09",
+      "bull": true,
+      "bench": "SPY",
+      "bench_px": 778.57,
+      "sma": 722.93,
+      "rows": [
+        {
+          "ticker": "DELL",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.8493813273340831
+        },
+        {
+          "ticker": "DD",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.6946031746031744
+        },
+        {
+          "ticker": "MRNA",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.6809262166405023
+        },
+        {
+          "ticker": "MU",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.3239021374735493
+        },
+        {
+          "ticker": "HPE",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.218561671353957
+        }
+      ]
+    }
+  }
+}
