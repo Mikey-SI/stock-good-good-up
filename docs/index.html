@@ -22,7 +22,6 @@
     #gate input { flex:1; font-family: Consolas, monospace; font-size:16px; border:1px solid var(--ink); background:transparent; padding:8px 10px; color:var(--ink); }
     #gate button { font-family: inherit; font-size:16px; border:1px solid var(--ink); background:var(--ink); color:var(--bg); padding:8px 14px; cursor:pointer; }
     #gate .err { color:#9d2c2c; min-height:1.4em; margin-top:10px; }
-    #app[hidden] { display:none; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th { text-align:left; font-weight:500; color:var(--muted); border-bottom:1px solid var(--ink); padding:6px 4px; }
     td { border-bottom:1px solid var(--line); padding:6px 4px; font-family: Consolas, "Cascadia Mono", monospace; }
@@ -38,62 +37,39 @@
     </form>
     <div class="err" id="err"></div>
   </div>
-  <div class="wrap" id="app" hidden>
-    <header>
-      <h1>本月选股</h1>
-      <div class="meta">行情 2026-10-09<br>每个交易日收盘后自动更新</div>
-    </header>
-    <section>
-      <h2>这个月怎么操作</h2>
-      <p class="lead">选股只在每月第 7 个美股交易日收盘做一次。还在名单里的继续拿，只换出局的。</p><p class="lead">这一档是 2026年10月9日 收盘选的。下一次选股是 2026年11月10日 收盘；遇到美股休市就顺延到下一个交易日。</p><p class="lead">另一条每天都生效：QQQ 或 SPY 的收盘价只要低于自己的 250 日均线，下一天全部换成 TLT（长期国债）。重新站上均线后，要等到下一次第 7 个交易日才买回股票。</p><p class="lead">行情用到 2026-10-09。下一次预览要等 2026年11月10日 收盘才换成。</p>
-      <div class="cols">
-        <div>
-          <h2>纳指100，看 QQQ</h2>
-          <p class="note">选股日 2026-10-09 收盘  QQQ 751.27，250日均线 658.98，选股日在 250 日均线上方，拿这 5 只。</p>
-          <table>
-            <thead><tr><th>现在应该拿着</th><th>仓位</th><th>动量</th></tr></thead>
-            <tbody><tr><td>MRNA</td><td>20%</td><td>168.1%</td></tr>
-<tr><td>MU</td><td>20%</td><td>132.4%</td></tr>
-<tr><td>CRWD</td><td>20%</td><td>120.4%</td></tr>
-<tr><td>PANW</td><td>20%</td><td>117.4%</td></tr>
-<tr><td>DDOG</td><td>20%</td><td>110.4%</td></tr></tbody>
-          </table>
-          <p class="note">下一次预览（2026-10-09，进攻）：MRNA、MU、CRWD、PANW、DDOG。等下次调仓日收盘才换成这一组。</p>
-        </div>
-        <div>
-          <h2>标普500，看 SPY</h2>
-          <p class="note">选股日 2026-10-09 收盘  SPY 778.57，250日均线 709.44，选股日在 250 日均线上方，拿这 5 只。</p>
-          <table>
-            <thead><tr><th>现在应该拿着</th><th>仓位</th><th>动量</th></tr></thead>
-            <tbody><tr><td>DELL</td><td>20%</td><td>186.3%</td></tr>
-<tr><td>MRNA</td><td>20%</td><td>168.1%</td></tr>
-<tr><td>MU</td><td>20%</td><td>132.4%</td></tr>
-<tr><td>HPE</td><td>20%</td><td>122.5%</td></tr>
-<tr><td>CRWD</td><td>20%</td><td>120.4%</td></tr></tbody>
-          </table>
-          <p class="note">下一次预览（2026-10-09，进攻）：DELL、MRNA、MU、HPE、CRWD。等下次调仓日收盘才换成这一组。</p>
-        </div>
-      </div>
-    </section>
-  </div>
+  <div class="wrap" id="app" hidden></div>
   <script>
-    const PASSWORD = "Shi.20040727";
+    const PACK = { salt: "TQBVX9b2/zt2JciDqUAlXw==", iv: "Kjw9hqSy7C1zb+92", data: "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" };
     const gate = document.getElementById("gate");
     const app = document.getElementById("app");
     const input = document.getElementById("pw");
     const err = document.getElementById("err");
-    function openApp() {
+    function b64(s) {
+      const bin = atob(s);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+    async function unlock(password) {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: b64(PACK.salt), iterations: 120000, hash: "SHA-256" },
+        base,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(PACK.iv) }, key, b64(PACK.data));
+      app.innerHTML = new TextDecoder().decode(clear);
       gate.hidden = true;
       app.hidden = false;
-      sessionStorage.setItem("picks-ok", "1");
     }
-    if (sessionStorage.getItem("picks-ok") === "1") openApp();
-    document.getElementById("lock").addEventListener("submit", function (event) {
+    document.getElementById("lock").addEventListener("submit", async function (event) {
       event.preventDefault();
-      if (input.value === PASSWORD) {
-        err.textContent = "";
-        openApp();
-      } else {
+      err.textContent = "";
+      try {
+        await unlock(input.value);
+      } catch (e) {
         err.textContent = "密码不对";
         input.select();
       }
