@@ -24,10 +24,11 @@ DOCS.mkdir(exist_ok=True)
 
 LOOKBACK = 126
 SKIP = 21
-SMA = 200
+SMA = 250
 TOP_N = 5
-DEFENSIVE = ["GLD", "TLT", "IEF", "BIL"]
-DEF_NAME = {"GLD": "黄金", "TLT": "长期国债", "IEF": "中期国债", "BIL": "超短债"}
+REBAL_N = 7
+BOND = "TLT"
+BOND_NAME = "长期国债"
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -184,19 +185,27 @@ def load_prices(tickers: list[str]) -> dict[str, pd.Series]:
     return got
 
 
-def month_ends(index: pd.DatetimeIndex) -> list[pd.Timestamp]:
-    dummy = pd.Series(1.0, index=index)
-    ends = pd.DatetimeIndex(dummy.resample("ME").last().index).normalize()
-    have = set(pd.DatetimeIndex(index).normalize())
-    return [pd.Timestamp(day) for day in ends if day in have]
+def nth_trading_days(index: pd.DatetimeIndex, n: int = REBAL_N) -> list[pd.Timestamp]:
+    idx = pd.DatetimeIndex(pd.to_datetime(index)).normalize().unique().sort_values()
+    out = []
+    grouped = pd.Series(1, index=idx).groupby([idx.year, idx.month])
+    for _, group in grouped:
+        days = group.index
+        out.append(pd.Timestamp(days[n - 1] if len(days) >= n else days[-1]))
+    return out
 
 
-def next_rebalance(last_done: pd.Timestamp) -> pd.Timestamp:
-    cursor = last_done
-    for _ in range(8):
-        cursor = pd.Timestamp(cursor + pd.offsets.MonthEnd(1)).normalize()
+def next_nth_weekday(last_done: pd.Timestamp, n: int = REBAL_N) -> pd.Timestamp:
+    """Expected next rebalance if the following month has no market holiday."""
+    start = pd.Timestamp(year=last_done.year, month=last_done.month, day=1) + pd.offsets.MonthBegin(1)
+    cursor = pd.Timestamp(start).normalize()
+    seen = 0
+    while seen < n:
         if cursor.weekday() < 5:
-            return cursor
+            seen += 1
+            if seen == n:
+                return cursor
+        cursor += pd.Timedelta(days=1)
     return cursor
 
 
@@ -209,11 +218,10 @@ def signal_on(closes: dict[str, pd.Series], stocks: list[str], bench: str, day: 
     frame = pd.DataFrame({ticker: closes[ticker] for ticker in stocks if ticker in closes})
     frame = frame.reindex(history.index)
     mom = frame.shift(SKIP).pct_change(max(LOOKBACK - SKIP, 1))
-    defensive = pd.DataFrame({name: closes[name] for name in DEFENSIVE if name in closes}).reindex(history.index)
-    dmom = defensive.pct_change(LOOKBACK)
-    best = dmom.iloc[-1].dropna()
-    best_name = str(best.idxmax()) if len(best) else "BIL"
-    best_score = float(best.max()) if len(best) else 0.0
+    bond = closes[BOND].reindex(history.index)
+    bond_mom = bond.pct_change(LOOKBACK)
+    bond_score = float(bond_mom.iloc[-1]) if pd.notna(bond_mom.iloc[-1]) else None
+    bond_row = [{"ticker": BOND, "name": BOND_NAME, "weight": 1.0, "momentum": bond_score}]
     if bull:
         scores = mom.iloc[-1].dropna()
         scores = scores[scores > 0]
@@ -227,10 +235,10 @@ def signal_on(closes: dict[str, pd.Series], stocks: list[str], bench: str, day: 
             ]
             mode = "进攻"
         else:
-            rows = [{"ticker": best_name, "name": DEF_NAME.get(best_name, ""), "weight": 1.0, "momentum": best_score}]
+            rows = bond_row
             mode = "防守"
     else:
-        rows = [{"ticker": best_name, "name": DEF_NAME.get(best_name, ""), "weight": 1.0, "momentum": best_score}]
+        rows = bond_row
         mode = "防守"
     return {
         "mode": mode,
@@ -244,12 +252,20 @@ def signal_on(closes: dict[str, pd.Series], stocks: list[str], bench: str, day: 
 
 
 def book(title: str, bench: str, names: list[str], closes: dict[str, pd.Series], held_day: pd.Timestamp, preview_day: pd.Timestamp) -> dict:
-    stocks = [ticker for ticker in names if ticker in closes and ticker not in DEFENSIVE and ticker != bench and len(closes[ticker]) >= LOOKBACK + SKIP + 5]
+    stocks = [ticker for ticker in names if ticker in closes and ticker not in {BOND, bench} and len(closes[ticker]) >= LOOKBACK + SKIP + 5]
+    chosen = signal_on(closes, stocks, bench, held_day)
+    latest = signal_on(closes, stocks, bench, preview_day)
+    if not latest["bull"]:
+        shown = latest
+        shown["switched"] = True
+    else:
+        shown = chosen
+        shown["switched"] = False
     return {
         "title": title,
         "n": len(stocks),
-        "held": signal_on(closes, stocks, bench, held_day),
-        "preview": signal_on(closes, stocks, bench, preview_day),
+        "held": shown,
+        "preview": latest,
     }
 
 
@@ -276,8 +292,13 @@ def row_html(rows: list[dict]) -> str:
 
 
 def note(held: dict) -> str:
-    side = "在 200 日均线上方，这一档买股票" if held["bull"] else "在 200 日均线下方，这一档全部换成防守"
-    return f"{held['on']} 收盘  {held['bench']} {held['bench_px']:.2f}，200日均线 {held['sma']:.2f}，{side}。"
+    if held.get("switched"):
+        return (
+            f"最新收盘 {held['bench']} {held['bench_px']:.2f}，已经低于 250 日均线 {held['sma']:.2f}。"
+            "现在全部换成 TLT，不要等下一次选股日。"
+        )
+    side = "选股日在 250 日均线上方，拿这 5 只" if held["bull"] else "选股日在 250 日均线下方，这一档就是 TLT"
+    return f"选股日 {held['on']} 收盘  {held['bench']} {held['bench_px']:.2f}，250日均线 {held['sma']:.2f}，{side}。"
 
 
 def preview_line(preview: dict) -> str:
@@ -336,7 +357,7 @@ def render(payload: dict) -> str:
   <div class="wrap" id="app" hidden>
     <header>
       <h1>本月选股</h1>
-      <div class="meta">行情 {esc(payload["asof"])}<br>每月 1 日自动更新</div>
+      <div class="meta">行情 {esc(payload["asof"])}<br>每个交易日收盘后自动更新</div>
     </header>
     <section>
       <h2>这个月怎么操作</h2>
@@ -395,30 +416,27 @@ def main() -> None:
     print("universes", flush=True)
     nq = nasdaq100()
     sp = sp500()
-    tickers = list(dict.fromkeys(nq + sp + DEFENSIVE + ["QQQ", "SPY"]))
+    tickers = list(dict.fromkeys(nq + sp + [BOND, "QQQ", "SPY"]))
     print(f"  nasdaq={len(nq)} sp500={len(sp)} download={len(tickers)}", flush=True)
     closes = load_prices(tickers)
     if "QQQ" not in closes or "SPY" not in closes:
         raise RuntimeError("QQQ or SPY missing")
-    for name in DEFENSIVE:
-        if name not in closes:
-            raise RuntimeError(f"missing {name}")
+    if BOND not in closes:
+        raise RuntimeError(f"missing {BOND}")
     latest = min(closes["QQQ"].index[-1], closes["SPY"].index[-1])
-    ends = [day for day in month_ends(closes["QQQ"].index) if day <= latest]
-    if not ends:
-        raise RuntimeError("no month-end")
-    held_day = ends[-1]
-    nxt = next_rebalance(held_day)
-    sleeve = held_day + pd.offsets.MonthBegin(1)
+    days = [day for day in nth_trading_days(closes["QQQ"].index) if day <= latest]
+    if not days:
+        raise RuntimeError("no rebalance day")
+    held_day = days[-1]
+    nxt = next_nth_weekday(held_day)
     preview_day = pd.Timestamp(latest).normalize()
     qqq = book("纳指100", "QQQ", nq, closes, held_day, preview_day)
     sp_book = book("标普500", "SPY", sp, closes, held_day, preview_day)
-    sleeve_label = f"{int(sleeve.year)}年{int(sleeve.month)}月"
     lines = [
-        "每个月只调一次仓：美股该月最后一个交易日收盘后换。月中保持不动。",
-        f"现在拿的是{sleeve_label}这一档。它在 {cn_date(held_day)} 美股收盘选出，拿到 {cn_date(nxt)} 美股收盘。",
-        f"下一次调仓是 {cn_date(nxt)} 美股收盘之后，北京时间大约是第二天早上。在那之前，按「现在应该拿着」买。",
-        f"行情用到 {preview_day.date()}。下一次预览要等 {cn_date(nxt)} 的收盘价出来才生效。",
+        "选股只在每月第 7 个美股交易日收盘做一次。还在名单里的继续拿，只换出局的。",
+        f"这一档是 {cn_date(held_day)} 收盘选的。下一次选股是 {cn_date(nxt)} 收盘；遇到美股休市就顺延到下一个交易日。",
+        "另一条每天都生效：QQQ 或 SPY 的收盘价只要低于自己的 250 日均线，下一天全部换成 TLT（长期国债）。重新站上均线后，要等到下一次第 7 个交易日才买回股票。",
+        f"行情用到 {preview_day.date()}。下一次预览要等 {cn_date(nxt)} 收盘才换成。",
     ]
     now = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M")
     payload = {
