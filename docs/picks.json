@@ -1,6 +1,6 @@
 {
   "asof": "2026-10-09",
-  "generated_at": "2026-10-12 10:09",
+  "generated_at": "2026-10-12 10:12",
   "held_on": "2026-09-30",
   "next_on": "2026-11-30",
   "sleeve": "2026年10月",
@@ -19,37 +19,37 @@
       "bull": true,
       "bench": "QQQ",
       "bench_px": 739.77,
-      "sma": 667.27,
+      "sma": 665.87,
       "rows": [
         {
           "ticker": "MU",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.8378226379351177
+          "momentum": 1.8382589765552928
         },
         {
           "ticker": "MRNA",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.7625984251968507
+          "momentum": 1.7625983945981485
         },
         {
           "ticker": "ALAB",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.7096715328467158
+          "momentum": 1.7096716708116695
         },
         {
           "ticker": "SNDK",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.4659237573582646
+          "momentum": 1.4659235762715106
         },
         {
           "ticker": "PANW",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.3835454091816368
+          "momentum": 1.3835453307460397
         }
       ]
     },
@@ -59,81 +59,81 @@
       "bull": true,
       "bench": "QQQ",
       "bench_px": 751.27,
-      "sma": 672.18,
+      "sma": 670.88,
       "rows": [
         {
           "ticker": "MRNA",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.6809262166405023
+          "momentum": 1.680926168988397
         },
         {
           "ticker": "MU",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.3239021374735493
+          "momentum": 1.324259454472911
+        },
+        {
+          "ticker": "CRWD",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.2042109299181858
         },
         {
           "ticker": "PANW",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.173569639761125
+          "momentum": 1.1735696366844306
         },
         {
           "ticker": "DDOG",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.1042042327038057
-        },
-        {
-          "ticker": "FTNT",
-          "name": "",
-          "weight": 0.2,
-          "momentum": 1.0710560625814862
+          "momentum": 1.1042041894403885
         }
       ]
     }
   },
   "sp": {
     "title": "标普500",
-    "n": 497,
+    "n": 500,
     "held": {
       "mode": "进攻",
       "on": "2026-09-30",
       "bull": true,
       "bench": "SPY",
       "bench_px": 762.63,
-      "sma": 719.62,
+      "sma": 716.11,
       "rows": [
-        {
-          "ticker": "DD",
-          "name": "",
-          "weight": 0.2,
-          "momentum": 1.9386462882096072
-        },
         {
           "ticker": "MU",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.8378226379351177
+          "momentum": 1.8382589765552928
         },
         {
           "ticker": "DELL",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.7783464327057819
+          "momentum": 1.7915483869400872
         },
         {
           "ticker": "MRNA",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.7625984251968507
+          "momentum": 1.7625983945981485
         },
         {
           "ticker": "SNDK",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.4659237573582646
+          "momentum": 1.4659235762715106
+        },
+        {
+          "ticker": "PANW",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.3835453307460397
         }
       ]
     },
@@ -143,37 +143,37 @@
       "bull": true,
       "bench": "SPY",
       "bench_px": 778.57,
-      "sma": 722.93,
+      "sma": 719.66,
       "rows": [
         {
           "ticker": "DELL",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.8493813273340831
-        },
-        {
-          "ticker": "DD",
-          "name": "",
-          "weight": 0.2,
-          "momentum": 1.6946031746031744
+          "momentum": 1.8629205596698166
         },
         {
           "ticker": "MRNA",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.6809262166405023
+          "momentum": 1.680926168988397
         },
         {
           "ticker": "MU",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.3239021374735493
+          "momentum": 1.324259454472911
         },
         {
           "ticker": "HPE",
           "name": "",
           "weight": 0.2,
-          "momentum": 1.218561671353957
+          "momentum": 1.225052669260314
+        },
+        {
+          "ticker": "CRWD",
+          "name": "",
+          "weight": 0.2,
+          "momentum": 1.2042109299181858
         }
       ]
     }
