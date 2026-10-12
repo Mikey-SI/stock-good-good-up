@@ -444,7 +444,6 @@ def main() -> None:
         "generated_at": now,
         "held_on": str(held_day.date()),
         "next_on": str(nxt.date()),
-        "sleeve": sleeve_label,
         "lines": lines,
         "qqq": qqq,
         "sp": sp_book,
