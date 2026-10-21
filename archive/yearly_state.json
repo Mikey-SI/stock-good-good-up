@@ -1,0 +1,693 @@
+{
+  "signal_year": 2025,
+  "strategies": [
+    {
+      "name": "QQQ 去年第一",
+      "bench": "QQQ",
+      "top_n": 1,
+      "weights": [
+        1.0
+      ],
+      "years": [
+        {
+          "year": 2016,
+          "picks": [
+            {
+              "ticker": "NFLX",
+              "weight": 1.0,
+              "prior_return": 1.3437836426593366
+            }
+          ],
+          "return": 0.08235709142500047
+        },
+        {
+          "year": 2017,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 1.0,
+              "prior_return": 2.269601352602184
+            }
+          ],
+          "return": 0.819879470807759
+        },
+        {
+          "year": 2018,
+          "picks": [
+            {
+              "ticker": "ALGN",
+              "weight": 1.0,
+              "prior_return": 1.3113493060409525
+            }
+          ],
+          "return": -0.057428370428097786
+        },
+        {
+          "year": 2019,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 1.0,
+              "prior_return": 0.795719801943733
+            }
+          ],
+          "return": 1.4842905138021387
+        },
+        {
+          "year": 2020,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 1.0,
+              "prior_return": 1.4842905138021374
+            }
+          ],
+          "return": 0.9997818984714872
+        },
+        {
+          "year": 2021,
+          "picks": [
+            {
+              "ticker": "TSLA",
+              "weight": 1.0,
+              "prior_return": 7.434369946079432
+            }
+          ],
+          "return": 0.4975555924013566
+        },
+        {
+          "year": 2022,
+          "picks": [
+            {
+              "ticker": "LCID",
+              "weight": 1.0,
+              "prior_return": 2.801198859142549
+            }
+          ],
+          "return": -0.820499334949388
+        },
+        {
+          "year": 2023,
+          "picks": [
+            {
+              "ticker": "ENPH",
+              "weight": 1.0,
+              "prior_return": 0.44834365321462166
+            }
+          ],
+          "return": -0.5012831987804023
+        },
+        {
+          "year": 2024,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 1.0,
+              "prior_return": 2.3901714443577426
+            }
+          ],
+          "return": 1.7124932285710317
+        },
+        {
+          "year": 2025,
+          "picks": [
+            {
+              "ticker": "APP",
+              "weight": 1.0,
+              "prior_return": 7.126223311716396
+            }
+          ],
+          "return": 1.0807832358472762
+        }
+      ],
+      "current": {
+        "signal_year": 2025,
+        "hold_until": "2026年最后一个交易日收盘",
+        "picks": [
+          {
+            "ticker": "WDC",
+            "weight": 1.0,
+            "prior_return": 2.8367851735363376
+          }
+        ],
+        "asof": "2026-06-17"
+      },
+      "metrics": {
+        "cagr": 0.21247861496015585,
+        "max_dd": -0.9572498214805332,
+        "total": 5.868397452968119,
+        "years": 10.001368925393566
+      },
+      "bench_metrics": {
+        "cagr": 0.1942848643856876,
+        "max_dd": -0.35118715832787795,
+        "total": 4.904523271662312,
+        "years": 10.001368925393566
+      }
+    },
+    {
+      "name": "标普 去年第一",
+      "bench": "SPY",
+      "top_n": 1,
+      "weights": [
+        1.0
+      ],
+      "years": [
+        {
+          "year": 2016,
+          "picks": [
+            {
+              "ticker": "NFLX",
+              "weight": 1.0,
+              "prior_return": 1.3437836426593366
+            }
+          ],
+          "return": 0.08235709142500047
+        },
+        {
+          "year": 2017,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 1.0,
+              "prior_return": 2.2696022975470727
+            }
+          ],
+          "return": 0.8198782649062257
+        },
+        {
+          "year": 2018,
+          "picks": [
+            {
+              "ticker": "NRG",
+              "weight": 1.0,
+              "prior_return": 1.3369420673857504
+            }
+          ],
+          "return": 0.39589530254647376
+        },
+        {
+          "year": 2019,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 1.0,
+              "prior_return": 0.795719801943733
+            }
+          ],
+          "return": 1.4842905138021387
+        },
+        {
+          "year": 2020,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 1.0,
+              "prior_return": 1.4842905138021374
+            }
+          ],
+          "return": 0.9997818984714899
+        },
+        {
+          "year": 2021,
+          "picks": [
+            {
+              "ticker": "TSLA",
+              "weight": 1.0,
+              "prior_return": 7.434369946079432
+            }
+          ],
+          "return": 0.4975555924013564
+        },
+        {
+          "year": 2022,
+          "picks": [
+            {
+              "ticker": "DVN",
+              "weight": 1.0,
+              "prior_return": 1.9589166752590428
+            }
+          ],
+          "return": 0.5086408081057028
+        },
+        {
+          "year": 2023,
+          "picks": [
+            {
+              "ticker": "OXY",
+              "weight": 1.0,
+              "prior_return": 1.1909841720617842
+            }
+          ],
+          "return": -0.04077802443620959
+        },
+        {
+          "year": 2024,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 1.0,
+              "prior_return": 2.390172632756469
+            }
+          ],
+          "return": 1.712492809939643
+        },
+        {
+          "year": 2025,
+          "picks": [
+            {
+              "ticker": "PLTR",
+              "weight": 1.0,
+              "prior_return": 3.4047755921584306
+            }
+          ],
+          "return": 1.3502579195448403
+        }
+      ],
+      "current": {
+        "signal_year": 2025,
+        "hold_until": "2026年最后一个交易日收盘",
+        "picks": [
+          {
+            "ticker": "WDC",
+            "weight": 1.0,
+            "prior_return": 2.836784507225593
+          }
+        ],
+        "asof": "2026-06-17"
+      },
+      "metrics": {
+        "cagr": 0.6859925805550153,
+        "max_dd": -0.4061145842956553,
+        "total": 184.72361983570713,
+        "years": 10.001368925393566
+      },
+      "bench_metrics": {
+        "cagr": 0.14713335916569936,
+        "max_dd": -0.3371725495146518,
+        "total": 2.9465780971189957,
+        "years": 10.001368925393566
+      }
+    },
+    {
+      "name": "QQQ 前两名 55/45",
+      "bench": "QQQ",
+      "top_n": 2,
+      "weights": [
+        0.55,
+        0.45
+      ],
+      "years": [
+        {
+          "year": 2016,
+          "picks": [
+            {
+              "ticker": "NFLX",
+              "weight": 0.55,
+              "prior_return": 1.3437836426593366
+            },
+            {
+              "ticker": "AMZN",
+              "weight": 0.45,
+              "prior_return": 1.1778313909946103
+            }
+          ],
+          "return": 0.11960247210669328
+        },
+        {
+          "year": 2017,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 0.55,
+              "prior_return": 2.269601352602184
+            },
+            {
+              "ticker": "AMAT",
+              "weight": 0.45,
+              "prior_return": 0.7570238109893352
+            }
+          ],
+          "return": 0.7412427427135571
+        },
+        {
+          "year": 2018,
+          "picks": [
+            {
+              "ticker": "ALGN",
+              "weight": 0.55,
+              "prior_return": 1.3113493060409525
+            },
+            {
+              "ticker": "TTWO",
+              "weight": 0.45,
+              "prior_return": 1.2272265518403342
+            }
+          ],
+          "return": -0.030519922577668
+        },
+        {
+          "year": 2019,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 0.55,
+              "prior_return": 0.795719801943733
+            },
+            {
+              "ticker": "WDAY",
+              "weight": 0.45,
+              "prior_return": 0.5694908200174502
+            }
+          ],
+          "return": 0.7242541284173896
+        },
+        {
+          "year": 2020,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 0.55,
+              "prior_return": 1.4842905138021374
+            },
+            {
+              "ticker": "LRCX",
+              "weight": 0.45,
+              "prior_return": 1.1933352293858301
+            }
+          ],
+          "return": 0.8926052900976618
+        },
+        {
+          "year": 2021,
+          "picks": [
+            {
+              "ticker": "TSLA",
+              "weight": 0.55,
+              "prior_return": 7.434369946079432
+            },
+            {
+              "ticker": "PTON",
+              "weight": 0.45,
+              "prior_return": 4.342253635866589
+            }
+          ],
+          "return": -0.29102803491614726
+        },
+        {
+          "year": 2022,
+          "picks": [
+            {
+              "ticker": "LCID",
+              "weight": 0.55,
+              "prior_return": 2.801198859142549
+            },
+            {
+              "ticker": "MRNA",
+              "weight": 0.45,
+              "prior_return": 1.4311284843481658
+            }
+          ],
+          "return": -0.6372570631737051
+        },
+        {
+          "year": 2023,
+          "picks": [
+            {
+              "ticker": "ENPH",
+              "weight": 0.55,
+              "prior_return": 0.44834365321462166
+            },
+            {
+              "ticker": "PDD",
+              "weight": 0.45,
+              "prior_return": 0.39879938454471775
+            }
+          ],
+          "return": -0.04025788421022447
+        },
+        {
+          "year": 2024,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 0.55,
+              "prior_return": 2.3901714443577426
+            },
+            {
+              "ticker": "META",
+              "weight": 0.45,
+              "prior_return": 1.9413330108275848
+            }
+          ],
+          "return": 1.2443089361119828
+        },
+        {
+          "year": 2025,
+          "picks": [
+            {
+              "ticker": "APP",
+              "weight": 0.55,
+              "prior_return": 7.126223311716396
+            },
+            {
+              "ticker": "MSTR",
+              "weight": 0.45,
+              "prior_return": 3.585351965651417
+            }
+          ],
+          "return": 0.2388048278058834
+        }
+      ],
+      "current": {
+        "signal_year": 2025,
+        "hold_until": "2026年最后一个交易日收盘",
+        "picks": [
+          {
+            "ticker": "WDC",
+            "weight": 0.55,
+            "prior_return": 2.8367851735363376
+          },
+          {
+            "ticker": "MU",
+            "weight": 0.45,
+            "prior_return": 2.40239276770416
+          }
+        ],
+        "asof": "2026-06-17"
+      },
+      "metrics": {
+        "cagr": 0.15323018706043912,
+        "max_dd": -0.867794297279071,
+        "total": 3.1614509335858374,
+        "years": 10.001368925393566
+      },
+      "bench_metrics": {
+        "cagr": 0.1942848643856876,
+        "max_dd": -0.35118715832787795,
+        "total": 4.904523271662312,
+        "years": 10.001368925393566
+      }
+    },
+    {
+      "name": "标普 前两名 55/45",
+      "bench": "SPY",
+      "top_n": 2,
+      "weights": [
+        0.55,
+        0.45
+      ],
+      "years": [
+        {
+          "year": 2016,
+          "picks": [
+            {
+              "ticker": "NFLX",
+              "weight": 0.55,
+              "prior_return": 1.3437836426593366
+            },
+            {
+              "ticker": "AMZN",
+              "weight": 0.45,
+              "prior_return": 1.1778313909946103
+            }
+          ],
+          "return": 0.11960247210669328
+        },
+        {
+          "year": 2017,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 0.55,
+              "prior_return": 2.2696022975470727
+            },
+            {
+              "ticker": "OKE",
+              "weight": 0.45,
+              "prior_return": 1.4962495041469568
+            }
+          ],
+          "return": 0.4141005838989733
+        },
+        {
+          "year": 2018,
+          "picks": [
+            {
+              "ticker": "NRG",
+              "weight": 0.55,
+              "prior_return": 1.3369420673857504
+            },
+            {
+              "ticker": "ALGN",
+              "weight": 0.45,
+              "prior_return": 1.3113493060409525
+            }
+          ],
+          "return": 0.20253179021991952
+        },
+        {
+          "year": 2019,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 0.55,
+              "prior_return": 0.795719801943733
+            },
+            {
+              "ticker": "FTNT",
+              "weight": 0.45,
+              "prior_return": 0.6120394344006201
+            }
+          ],
+          "return": 1.0508129372211101
+        },
+        {
+          "year": 2020,
+          "picks": [
+            {
+              "ticker": "AMD",
+              "weight": 0.55,
+              "prior_return": 1.4842905138021374
+            },
+            {
+              "ticker": "LRCX",
+              "weight": 0.45,
+              "prior_return": 1.1933349069696457
+            }
+          ],
+          "return": 0.8926052600185654
+        },
+        {
+          "year": 2021,
+          "picks": [
+            {
+              "ticker": "TSLA",
+              "weight": 0.55,
+              "prior_return": 7.434369946079432
+            },
+            {
+              "ticker": "ETSY",
+              "weight": 0.45,
+              "prior_return": 3.0160272398667045
+            }
+          ],
+          "return": 0.4413539412152607
+        },
+        {
+          "year": 2022,
+          "picks": [
+            {
+              "ticker": "DVN",
+              "weight": 0.55,
+              "prior_return": 1.9589166752590428
+            },
+            {
+              "ticker": "MRNA",
+              "weight": 0.45,
+              "prior_return": 1.4311284843481658
+            }
+          ],
+          "return": 0.1790925900581397
+        },
+        {
+          "year": 2023,
+          "picks": [
+            {
+              "ticker": "OXY",
+              "weight": 0.55,
+              "prior_return": 1.1909841720617842
+            },
+            {
+              "ticker": "XOM",
+              "weight": 0.45,
+              "prior_return": 0.8740910317070516
+            }
+          ],
+          "return": -0.04583043357629457
+        },
+        {
+          "year": 2024,
+          "picks": [
+            {
+              "ticker": "NVDA",
+              "weight": 0.55,
+              "prior_return": 2.390172632756469
+            },
+            {
+              "ticker": "META",
+              "weight": 0.45,
+              "prior_return": 1.9413330108275848
+            }
+          ],
+          "return": 1.2443086100690164
+        },
+        {
+          "year": 2025,
+          "picks": [
+            {
+              "ticker": "PLTR",
+              "weight": 0.55,
+              "prior_return": 3.4047755921584306
+            },
+            {
+              "ticker": "VST",
+              "weight": 0.45,
+              "prior_return": 2.6152911278073416
+            }
+          ],
+          "return": 0.8329357777272581
+        }
+      ],
+      "current": {
+        "signal_year": 2025,
+        "hold_until": "2026年最后一个交易日收盘",
+        "picks": [
+          {
+            "ticker": "WDC",
+            "weight": 0.55,
+            "prior_return": 2.836784507225593
+          },
+          {
+            "ticker": "MU",
+            "weight": 0.45,
+            "prior_return": 2.40239276770416
+          }
+        ],
+        "asof": "2026-06-17"
+      },
+      "metrics": {
+        "cagr": 0.47408434420947754,
+        "max_dd": -0.4075196632537603,
+        "total": 47.46788085333763,
+        "years": 10.001368925393566
+      },
+      "bench_metrics": {
+        "cagr": 0.14713335916569936,
+        "max_dd": -0.3371725495146518,
+        "total": 2.9465780971189957,
+        "years": 10.001368925393566
+      }
+    }
+  ]
+}

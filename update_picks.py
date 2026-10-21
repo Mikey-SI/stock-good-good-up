@@ -1,9 +1,13 @@
-"""Rebuild the public monthly-picks page.
+"""Rebuild the public picks page.
 
-Same rules as the top of the local dashboard:
-  monthly rebalance on a month-end that is itself a trading day,
-  126-day momentum, top 5, benchmark above its 200-day average,
-  otherwise the strongest of GLD / TLT / IEF / BIL.
+Monthly book: 7th US trading day, 126-day momentum skipping 21 days,
+top 5. If QQQ or SPY closes under its 250-day average, that book is TLT
+until the next 7th trading day.
+
+Yearly book: last session of the year, buy last year's winners inside
+the index. The 2016-2025 table is the point-in-time backtest. Current
+holdings stay on last year's list until a new December close is in the
+price history.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 DOCS = HERE / "docs"
+STATE_PATH = HERE / "archive" / "yearly_state.json"
 DOCS.mkdir(exist_ok=True)
 
 LOOKBACK = 126
@@ -43,8 +48,15 @@ def _get(url: str, referer: str) -> bytes:
         url,
         headers={"User-Agent": UA, "Referer": referer, "Accept": "application/json,text/html"},
     )
-    with urllib.request.urlopen(req, timeout=40) as resp:
-        return resp.read()
+    last = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=40) as resp:
+                return resp.read()
+        except Exception as exc:
+            last = exc
+            time.sleep(1.2 * (attempt + 1))
+    raise last
 
 
 def wiki_table(url: str) -> list[pd.DataFrame]:
@@ -304,6 +316,30 @@ def note(held: dict) -> str:
     return f"选股日 {held['on']} 收盘  {held['bench']} {held['bench_px']:.2f}，250日均线 {held['sma']:.2f}，{side}。"
 
 
+def yearly_card(item: dict) -> str:
+    picks = "、".join(
+        f"{row['ticker']} {row['weight']*100:.0f}%（去年 {row['prior_return']*100:.0f}%）"
+        for row in item["current"]["picks"]
+    )
+    metrics = item["metrics"]
+    bench = item["bench_metrics"]
+    body = []
+    for year in item["years"]:
+        names = " / ".join(f"{row['ticker']} {row['weight']*100:.0f}%" for row in year["picks"])
+        body.append(f"<tr><td>{year['year']}</td><td>{esc(names)}</td><td>{year['return']*100:.1f}%</td></tr>")
+    return f"""
+        <div>
+          <h2>{esc(item["name"])}</h2>
+          <p class="note">现在拿着 {esc(picks)}。这是 {item["current"]["signal_year"]} 年涨幅选出来的，拿到 {esc(item["current"]["hold_until"])}。</p>
+          <p class="note">2016–2025 年化 {metrics["cagr"]*100:.1f}%，最大回撤 {metrics["max_dd"]*100:.1f}%。同期 {esc(item["bench"])} {bench["cagr"]*100:.1f}% / {bench["max_dd"]*100:.1f}%。</p>
+          <table>
+            <thead><tr><th>持有年份</th><th>股票</th><th>当年收益</th></tr></thead>
+            <tbody>{"".join(body)}</tbody>
+          </table>
+        </div>
+"""
+
+
 def preview_line(preview: dict) -> str:
     names = "、".join(row["ticker"] + (row["name"] or "") for row in preview["rows"])
     return f"下一次预览（{preview['on']}，{preview['mode']}）：{names}。等下次调仓日收盘才换成这一组。"
@@ -357,6 +393,14 @@ def render(payload: dict) -> str:
           </table>
           <p class="note">{esc(preview_line(sp["preview"]))}</p>
         </div>
+      </div>
+    </section>
+    <section>
+      <h2>去年涨幅，拿一整年</h2>
+      <p class="lead">每年最后一个交易日收盘换仓。用刚结束的那一年的涨幅，在当时的指数成分里选。第一名全部买入。前两名按 55% / 45%，涨得更多的那只拿 55%。</p>
+      <p class="lead">现在是去年的名单，拿到今年最后一个交易日收盘。下面的十年是 2016 到 2025 十个完整持有年，换仓扣 10 个基点。</p>
+      <div class="cols">
+        {"".join(yearly_card(item) for item in payload["yearly"])}
       </div>
     </section>
 """
@@ -442,6 +486,45 @@ def render(payload: dict) -> str:
 </html>
 """
 
+def refresh_yearly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[str]) -> dict:
+    """Keep last year's winners until a newer December close is in the prices."""
+    from yearly_winners import choose, holding_year_return, prior_returns, year_end_dates
+
+    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    bench = closes.get("QQQ")
+    if bench is None or bench.empty:
+        return state
+    ends = year_end_dates(bench.index)
+    latest = pd.DatetimeIndex(bench.dropna().index).max()
+    completed = [year for year, day in ends.items() if day.month == 12 and day <= latest]
+    if not completed:
+        return state
+    signal_year = max(completed)
+    old_signal = int(state["signal_year"])
+    if signal_year <= old_signal:
+        return state
+    for item in state["strategies"]:
+        if signal_year == old_signal + 1:
+            ret = holding_year_return(closes, item["current"]["picks"], ends, signal_year)
+            if ret is not None:
+                item["years"].append({"year": signal_year, "picks": item["current"]["picks"], "return": ret})
+        universe = nq if item["bench"] == "QQQ" else sp
+        pool = [ticker for ticker in universe if ticker not in {item["bench"], BOND}]
+        picks = choose(prior_returns(closes, pool, ends, signal_year), int(item["top_n"]), tuple(item["weights"]))
+        if not picks:
+            continue
+        item["current"] = {
+            "signal_year": signal_year,
+            "hold_until": f"{signal_year + 1}年最后一个交易日收盘",
+            "picks": picks,
+            "asof": str(pd.Timestamp(latest).date()),
+        }
+    state["signal_year"] = signal_year
+    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"  yearly book rolled to {signal_year}", flush=True)
+    return state
+
+
 def main() -> None:
     print("universes", flush=True)
     nq = nasdaq100()
@@ -462,6 +545,14 @@ def main() -> None:
     preview_day = pd.Timestamp(latest).normalize()
     qqq = book("纳指100", "QQQ", nq, closes, held_day, preview_day)
     sp_book = book("标普500", "SPY", sp, closes, held_day, preview_day)
+    state = refresh_yearly_state(closes, nq, sp)
+    yearly = state["strategies"]
+    for item in yearly:
+        print(
+            f"  {item['name']}: CAGR={item['metrics']['cagr']*100:.1f}% "
+            f"now={[row['ticker'] for row in item['current']['picks']]}",
+            flush=True,
+        )
     lines = [
         "选股只在每月第 7 个美股交易日收盘做一次。还在名单里的继续拿，只换出局的。",
         f"这一档是 {cn_date(held_day)} 收盘选的。下一次选股是 {cn_date(nxt)} 收盘；遇到美股休市就顺延到下一个交易日。",
@@ -477,6 +568,7 @@ def main() -> None:
         "lines": lines,
         "qqq": qqq,
         "sp": sp_book,
+        "yearly": yearly,
     }
     (DOCS / "index.html").write_text(render(payload), encoding="utf-8")
     stale = DOCS / "picks.json"
