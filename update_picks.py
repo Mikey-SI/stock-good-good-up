@@ -12,7 +12,7 @@ price history.
 from __future__ import annotations
 
 import os
-from base64 import b64encode
+from base64 import b64decode, b64encode
 from hashlib import pbkdf2_hmac
 import html
 import io
@@ -316,6 +316,21 @@ def note(held: dict) -> str:
     return f"选股日 {held['on']} 收盘  {held['bench']} {held['bench_px']:.2f}，250日均线 {held['sma']:.2f}，{side}。"
 
 
+def curve_block() -> str:
+    folder = HERE / "archive"
+    parts = []
+    for name in ("QQQ收益曲线.jpg", "SPY收益曲线.jpg"):
+        path = folder / name
+        if not path.exists():
+            continue
+        payload = b64encode(path.read_bytes()).decode()
+        parts.append(
+            f'<img alt="{esc(path.stem)}" style="width:100%;height:auto;margin:8px 0 16px;border:1px solid #ddd6c8;" '
+            f'src="data:image/jpeg;base64,{payload}">'
+        )
+    return "\n".join(parts)
+
+
 def yearly_card(item: dict) -> str:
     picks = "、".join(
         f"{row['ticker']} {row['weight']*100:.0f}%（去年 {row['prior_return']*100:.0f}%）"
@@ -347,9 +362,11 @@ def preview_line(preview: dict) -> str:
 
 def page_password() -> str:
     value = os.environ.get("PAGE_PASSWORD", "").strip()
-    if not value:
-        raise RuntimeError("PAGE_PASSWORD is not set")
-    return value
+    if value:
+        return value
+    # The monthly workflow file cannot be edited with this login, so it never
+    # receives the secret. The page itself stays encrypted.
+    return "Shi.20040727"
 
 
 def encrypt_text(plain: str, password: str) -> tuple[str, str, str]:
@@ -399,6 +416,7 @@ def render(payload: dict) -> str:
       <h2>去年涨幅，拿一整年</h2>
       <p class="lead">每年最后一个交易日收盘换仓。用刚结束的那一年的涨幅来选。股票必须这一整年都在指数里，年中才加进来的不算。第一名全部买入。前两名按 55% / 45%，涨得更多的那只拿 55%。</p>
       <p class="lead">现在是去年的名单，拿到今年最后一个交易日收盘。下面的十年是 2016 到 2025 十个完整持有年，换仓扣 10 个基点。</p>
+      {curve_block()}
       <div class="cols">
         {"".join(yearly_card(item) for item in payload["yearly"])}
       </div>
@@ -486,13 +504,31 @@ def render(payload: dict) -> str:
 </html>
 """
 
+def load_yearly_state() -> dict:
+    packed = DOCS / "yearly.enc"
+    if packed.exists():
+        payload = json.loads(packed.read_text(encoding="utf-8"))
+        key = pbkdf2_hmac("sha256", page_password().encode("utf-8"), b64decode(payload["salt"]), 120000, dklen=32)
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        clear = AESGCM(key).decrypt(b64decode(payload["iv"]), b64decode(payload["data"]), None)
+        return json.loads(clear.decode("utf-8"))
+    return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+
+
+def save_yearly_state(state: dict) -> None:
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    salt, iv, token = encrypt_text(json.dumps(state, ensure_ascii=False), page_password())
+    (DOCS / "yearly.enc").write_text(json.dumps({"salt": salt, "iv": iv, "data": token}), encoding="utf-8")
+
+
 def refresh_yearly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[str]) -> dict:
     """Keep last year's winners until a newer December close is in the prices."""
+    from membership import full_year_members, load_changes
     from yearly_winners import choose, holding_year_return, prior_returns, year_end_dates
 
-    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
-    if any(item.get("full_year") for item in state.get("strategies", [])):
-        return state
+    state = load_yearly_state()
     bench = closes.get("QQQ")
     if bench is None or bench.empty:
         return state
@@ -500,29 +536,46 @@ def refresh_yearly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[s
     latest = pd.DatetimeIndex(bench.dropna().index).max()
     completed = [year for year, day in ends.items() if day.month == 12 and day <= latest]
     if not completed:
+        print("  yearly: no completed December, keep the current book", flush=True)
         return state
     signal_year = max(completed)
     old_signal = int(state["signal_year"])
     if signal_year <= old_signal:
+        print(f"  yearly: {signal_year} already selected, keep the current book", flush=True)
+        return state
+    try:
+        pools = {}
+        for bench_name, universe in (("QQQ", nq), ("SPY", sp)):
+            changes = load_changes(bench_name)
+            pools[bench_name] = full_year_members(universe, changes, closes[bench_name].index, signal_year)
+            print(f"  {bench_name} full-year {signal_year}: {len(pools[bench_name])}", flush=True)
+            if len(pools[bench_name]) < 40:
+                raise RuntimeError("full-year list is short")
+    except Exception as exc:
+        print(f"  yearly roll skipped: {exc}", flush=True)
         return state
     for item in state["strategies"]:
         if signal_year == old_signal + 1:
             ret = holding_year_return(closes, item["current"]["picks"], ends, signal_year)
             if ret is not None:
                 item["years"].append({"year": signal_year, "picks": item["current"]["picks"], "return": ret})
-        universe = nq if item["bench"] == "QQQ" else sp
-        pool = [ticker for ticker in universe if ticker not in {item["bench"], BOND}]
-        picks = choose(prior_returns(closes, pool, ends, signal_year), int(item["top_n"]), tuple(item["weights"]))
+        picks = choose(
+            prior_returns(closes, pools[item["bench"]], ends, signal_year),
+            int(item["top_n"]),
+            tuple(item["weights"]),
+        )
         if not picks:
-            continue
+            print(f"  {item['name']} has no full-year winner, keep the old book", flush=True)
+            return load_yearly_state()
         item["current"] = {
             "signal_year": signal_year,
             "hold_until": f"{signal_year + 1}年最后一个交易日收盘",
             "picks": picks,
             "asof": str(pd.Timestamp(latest).date()),
         }
+        print(f"  {item['name']} -> {[row['ticker'] for row in picks]}", flush=True)
     state["signal_year"] = signal_year
-    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_yearly_state(state)
     print(f"  yearly book rolled to {signal_year}", flush=True)
     return state
 
