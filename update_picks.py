@@ -397,7 +397,7 @@ def render(payload: dict) -> str:
     </section>
     <section>
       <h2>去年涨幅，拿一整年</h2>
-      <p class="lead">每年最后一个交易日收盘换仓。用刚结束的那一年的涨幅，在当时的指数成分里选。第一名全部买入。前两名按 55% / 45%，涨得更多的那只拿 55%。</p>
+      <p class="lead">每年最后一个交易日收盘换仓。用刚结束的那一年的涨幅来选。股票必须这一整年都在指数里，年中才加进来的不算。第一名全部买入。前两名按 55% / 45%，涨得更多的那只拿 55%。</p>
       <p class="lead">现在是去年的名单，拿到今年最后一个交易日收盘。下面的十年是 2016 到 2025 十个完整持有年，换仓扣 10 个基点。</p>
       <div class="cols">
         {"".join(yearly_card(item) for item in payload["yearly"])}
@@ -491,6 +491,8 @@ def refresh_yearly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[s
     from yearly_winners import choose, holding_year_return, prior_returns, year_end_dates
 
     state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    if any(item.get("full_year") for item in state.get("strategies", [])):
+        return state
     bench = closes.get("QQQ")
     if bench is None or bench.empty:
         return state
