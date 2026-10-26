@@ -377,6 +377,28 @@ def monthly_card(item: dict) -> str:
 """
 
 
+def momentum_card(item: dict) -> str:
+    current = item["current"]
+    metrics = item["metrics"]
+    bench = item["bench_metrics"]
+    body = []
+    for row in item["rows"][-8:]:
+        body.append(
+            f"<tr><td>{row['period']}</td><td>{esc(row['ticker'])}</td><td>{row['return']*100:.1f}%</td></tr>"
+        )
+    return f"""
+        <div>
+          <h2>{esc(item["name"])}</h2>
+          <p class="note">现在拿着 {esc(current["ticker"])} 100%（动量 {current["momentum"]*100:.0f}%）。信号是 {esc(current["signal"])}，拿到 {esc(current["hold_until"])}。</p>
+          <p class="note">年化 {metrics["cagr"]*100:.1f}%，最大回撤 {metrics["max_dd"]*100:.1f}%。同期 {esc(item["bench"])} {bench["cagr"]*100:.1f}% / {bench["max_dd"]*100:.1f}%。</p>
+          <table>
+            <thead><tr><th>持有</th><th>股票</th><th>收益</th></tr></thead>
+            <tbody>{"".join(body)}</tbody>
+          </table>
+        </div>
+"""
+
+
 def preview_line(preview: dict) -> str:
     names = "、".join(row["ticker"] + (row["name"] or "") for row in preview["rows"])
     return f"下一次预览（{preview['on']}，{preview['mode']}）：{names}。等下次调仓日收盘才换成这一组。"
@@ -441,6 +463,17 @@ def render(payload: dict) -> str:
       {curve_block(("上月涨幅收益曲线.jpg",))}
       <div class="cols">
         {"".join(monthly_card(item) for item in payload["monthly"])}
+      </div>
+    </section>
+      </div>
+    </section>
+    <section>
+      <h2>126日动量，跳过最近21日</h2>
+      <p class="lead">买动量最大的那一只。动量是 126 个交易日前到 21 个交易日前的涨幅。每月一档在月末收盘换，每年一档在年末收盘换。股票必须这一个月或这一年整段都在指数里。换仓扣 10 个基点。</p>
+      <p class="lead">没到对应的收盘日就继续拿着，不提前换。曲线画到最近行情。</p>
+      {curve_block(("动量换仓收益曲线.jpg",))}
+      <div class="cols">
+        {"".join(momentum_card(item) for item in payload["momentum"])}
       </div>
     </section>
     <section>
@@ -729,6 +762,124 @@ def refresh_monthly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[
     return state
 
 
+def momentum_on(closes: dict[str, pd.Series], names: list[str], bench: pd.Series, day: pd.Timestamp) -> dict[str, float]:
+    from yearly_winners import price_on
+
+    idx = pd.DatetimeIndex(bench.dropna().index).normalize().unique().sort_values()
+    idx = idx[idx <= day]
+    if len(idx) <= LOOKBACK:
+        return {}
+    end = pd.Timestamp(idx[-1 - SKIP])
+    start = pd.Timestamp(idx[-1 - LOOKBACK])
+    scores = {}
+    for ticker in names:
+        series = closes.get(ticker)
+        if series is None:
+            continue
+        left = price_on(series, start)
+        right = price_on(series, end)
+        if left is not None and right is not None:
+            scores[ticker] = right / left - 1.0
+    return scores
+
+
+def load_momentum_state() -> dict:
+    packed = DOCS / "momentum_switch.enc"
+    if packed.exists():
+        payload = json.loads(packed.read_text(encoding="utf-8"))
+        key = pbkdf2_hmac("sha256", page_password().encode("utf-8"), b64decode(payload["salt"]), 120000, dklen=32)
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        clear = AESGCM(key).decrypt(b64decode(payload["iv"]), b64decode(payload["data"]), None)
+        return json.loads(clear.decode("utf-8"))
+    return json.loads((HERE / "archive" / "momentum_switch.json").read_text(encoding="utf-8"))
+
+
+def save_momentum_state(state: dict) -> None:
+    path = HERE / "archive" / "momentum_switch.json"
+    path.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    salt, iv, token = encrypt_text(json.dumps(state, ensure_ascii=False), page_password())
+    (DOCS / "momentum_switch.enc").write_text(json.dumps({"salt": salt, "iv": iv, "data": token}), encoding="utf-8")
+
+
+def refresh_momentum_state(closes: dict[str, pd.Series], nq: list[str], sp: list[str]) -> dict:
+    """Roll momentum books only after the next month-end or year-end close."""
+    from membership import full_month_members, full_year_members, load_changes
+    from yearly_winners import FEE, price_on, year_end_dates
+
+    state = load_momentum_state()
+    month_ends = completed_month_ends(closes["QQQ"].index)
+    year_ends = [day for year, day in year_end_dates(closes["QQQ"].index).items() if day.month == 12]
+    changes = {name: load_changes(name) for name in ("QQQ", "SPY")}
+    universes = {"QQQ": nq, "SPY": sp}
+    changed = False
+    for item in state["strategies"]:
+        bench = closes[item["bench"]]
+        if item["mode"] == "month":
+            signal = pd.Timestamp(item["current"]["signal"] + "-01") + pd.offsets.MonthEnd(0)
+            pending = [day for day in month_ends if day > signal]
+        else:
+            signal_year = int(item["current"]["signal"])
+            pending = [day for day in year_ends if day.year > signal_year]
+        if not pending:
+            print(f"  {item['name']}: {item['current']['signal']} still current", flush=True)
+            continue
+        for day in pending:
+            prev = signal if item["mode"] == "month" else pd.Timestamp(f"{signal_year}-12-31")
+            if item["mode"] == "year":
+                prev = next(mark for mark in year_ends if mark.year == signal_year)
+            ticker = item["current"]["ticker"]
+            series = closes.get(ticker)
+            left = price_on(series, prev) if series is not None else None
+            right = price_on(series, day) if series is not None else None
+            if left is None or right is None:
+                print(f"  {item['name']} missing price, keep the book", flush=True)
+                break
+            ret = right / left - 1.0
+            if item["mode"] == "month":
+                pool = full_month_members(universes[item["bench"]], changes[item["bench"]], bench.index, day)
+            else:
+                pool = full_year_members(universes[item["bench"]], changes[item["bench"]], bench.index, day.year)
+            scores = momentum_on(closes, pool, bench, day)
+            if not scores:
+                print(f"  {item['name']} no momentum score, keep the book", flush=True)
+                break
+            winner = max(scores.items(), key=lambda pair: pair[1])
+            label = f"{day.year:04d}-{day.month:02d}" if item["mode"] == "month" else str(day.year)
+            item["rows"].append({"period": label, "ticker": ticker, "momentum": item["current"]["momentum"], "return": ret})
+            turn = 0.0 if winner[0] == ticker else 2.0
+            last = item["curve"]["equity"][-1]
+            grown = last * (1.0 + ret) * (1.0 - turn * FEE)
+            bench_left = price_on(bench, prev)
+            bench_right = price_on(bench, day)
+            bench_grown = item["curve"]["benchmark"][-1] * (bench_right / bench_left)
+            item["curve"]["categories"].append(day.strftime("%Y-%m"))
+            item["curve"]["equity"].append(round(float(grown), 4))
+            item["curve"]["benchmark"].append(round(float(bench_grown), 4))
+            start = pd.Timestamp(item["curve"]["categories"][0] + "-01")
+            years = max((day - start).days / 365.25, 1e-9)
+            total = grown / item["curve"]["equity"][0] - 1.0
+            item["metrics"]["cagr"] = (1.0 + total) ** (1.0 / years) - 1.0
+            item["metrics"]["total"] = total
+            item["metrics"]["max_dd"] = min(item["metrics"]["max_dd"], grown / max(item["curve"]["equity"]) - 1.0)
+            if item["mode"] == "month":
+                hold_month = 1 if day.month == 12 else day.month + 1
+                hold_year = day.year + 1 if day.month == 12 else day.year
+                hold_until = f"{hold_year}年{hold_month}月最后一个交易日收盘"
+                signal_label = f"{day.year:04d}-{day.month:02d}"
+            else:
+                hold_until = f"{day.year + 1}年最后一个交易日收盘"
+                signal_label = str(day.year)
+                signal_year = day.year
+            item["current"] = {"ticker": winner[0], "momentum": float(winner[1]), "signal": signal_label, "hold_until": hold_until}
+            signal = day
+            changed = True
+            print(f"  {item['name']} {label} {ticker} {ret*100:.1f}% -> {winner[0]}", flush=True)
+    if changed:
+        save_momentum_state(state)
+    return state
+
+
 def main() -> None:
     print("universes", flush=True)
     nq = nasdaq100()
@@ -752,6 +903,7 @@ def main() -> None:
     state = refresh_yearly_state(closes, nq, sp)
     yearly = state["strategies"]
     monthly = refresh_monthly_state(closes, nq, sp)["strategies"]
+    momentum = refresh_momentum_state(closes, nq, sp)["strategies"]
     for item in yearly:
         print(
             f"  {item['name']}: CAGR={item['metrics']['cagr']*100:.1f}% "
@@ -775,6 +927,7 @@ def main() -> None:
         "sp": sp_book,
         "yearly": yearly,
         "monthly": monthly,
+        "momentum": momentum,
     }
     (DOCS / "index.html").write_text(render(payload), encoding="utf-8")
     stale = DOCS / "picks.json"
