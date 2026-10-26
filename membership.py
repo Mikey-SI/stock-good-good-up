@@ -102,6 +102,26 @@ class PITMembership:
         return {ticker for ticker in names if ticker}
 
 
+def full_month_members(current: list[str], changes: pd.DataFrame, trading_index, day: pd.Timestamp) -> list[str]:
+    days = pd.DatetimeIndex(pd.to_datetime(trading_index)).normalize().unique().sort_values()
+    days = days[(days.year == day.year) & (days.month == day.month)]
+    if len(days) == 0:
+        return []
+    first = pd.Timestamp(days[0])
+    last = pd.Timestamp(days[-1])
+    pit = PITMembership(current, changes)
+    stayed = pit.members_on(first) & pit.members_on(last)
+    changed = set()
+    for when, added, removed in pit._records:
+        if when <= first or when > last:
+            continue
+        if added:
+            changed.add(added)
+        if removed:
+            changed.add(removed)
+    return sorted(ticker for ticker in stayed if ticker and ticker not in changed)
+
+
 def full_year_members(current: list[str], changes: pd.DataFrame, trading_index, year: int) -> list[str]:
     days = pd.DatetimeIndex(pd.to_datetime(trading_index)).normalize().unique().sort_values()
     days = days[days.year == year]

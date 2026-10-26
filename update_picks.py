@@ -316,10 +316,10 @@ def note(held: dict) -> str:
     return f"选股日 {held['on']} 收盘  {held['bench']} {held['bench_px']:.2f}，250日均线 {held['sma']:.2f}，{side}。"
 
 
-def curve_block() -> str:
+def curve_block(names: tuple[str, ...] = ("QQQ收益曲线.jpg", "SPY收益曲线.jpg")) -> str:
     folder = HERE / "archive"
     parts = []
-    for name in ("QQQ收益曲线.jpg", "SPY收益曲线.jpg"):
+    for name in names:
         path = folder / name
         if not path.exists():
             continue
@@ -349,6 +349,28 @@ def yearly_card(item: dict) -> str:
           <p class="note">2016–2025 年化 {metrics["cagr"]*100:.1f}%，最大回撤 {metrics["max_dd"]*100:.1f}%。同期 {esc(item["bench"])} {bench["cagr"]*100:.1f}% / {bench["max_dd"]*100:.1f}%。</p>
           <table>
             <thead><tr><th>持有年份</th><th>股票</th><th>当年收益</th></tr></thead>
+            <tbody>{"".join(body)}</tbody>
+          </table>
+        </div>
+"""
+
+
+def monthly_card(item: dict) -> str:
+    current = item["current"]
+    metrics = item["metrics"]
+    bench = item["bench_metrics"]
+    body = []
+    for row in item["months"][-12:]:
+        body.append(
+            f"<tr><td>{row['month']}</td><td>{esc(row['ticker'])}</td><td>{row['return']*100:.1f}%</td></tr>"
+        )
+    return f"""
+        <div>
+          <h2>{esc(item["name"])}</h2>
+          <p class="note">现在拿着 {esc(current["ticker"])} 100%（上个月 {current["prior_return"]*100:.0f}%）。这是 {esc(current["signal"])} 涨幅选出来的，拿到 {esc(current["hold_until"])}。</p>
+          <p class="note">2016-01 至最近完整月，年化 {metrics["cagr"]*100:.1f}%，最大回撤 {metrics["max_dd"]*100:.1f}%。同期 {esc(item["bench"])} {bench["cagr"]*100:.1f}% / {bench["max_dd"]*100:.1f}%。</p>
+          <table>
+            <thead><tr><th>持有月份</th><th>股票</th><th>当月收益</th></tr></thead>
             <tbody>{"".join(body)}</tbody>
           </table>
         </div>
@@ -410,6 +432,15 @@ def render(payload: dict) -> str:
           </table>
           <p class="note">{esc(preview_line(sp["preview"]))}</p>
         </div>
+      </div>
+    </section>
+    <section>
+      <h2>上个月涨最多，拿这一个月</h2>
+      <p class="lead">每个月最后一个交易日收盘换仓。这个月买上个月涨得最多的那一只，全部买入。股票必须上个月整月都在指数里，月中才加进来的不算。换仓扣 10 个基点。</p>
+      <p class="lead">没到这个月最后一个交易日，就继续拿着名单，不提前换。下面从 2016 年 1 月算到最近一个完整月。</p>
+      {curve_block(("上月涨幅收益曲线.jpg",))}
+      <div class="cols">
+        {"".join(monthly_card(item) for item in payload["monthly"])}
       </div>
     </section>
     <section>
@@ -580,6 +611,124 @@ def refresh_yearly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[s
     return state
 
 
+def completed_month_ends(index) -> list[pd.Timestamp]:
+    idx = pd.DatetimeIndex(pd.to_datetime(index)).normalize().unique().sort_values()
+    latest = pd.Timestamp(idx[-1])
+    out = []
+    grouped = pd.Series(1, index=idx).groupby([idx.year, idx.month])
+    for (_, _), group in grouped:
+        last = pd.Timestamp(group.index[-1])
+        later = latest.year > last.year or (latest.year == last.year and latest.month > last.month)
+        if later:
+            out.append(last)
+            continue
+        cursor = last + pd.Timedelta(days=1)
+        unfinished = False
+        while cursor.month == last.month and cursor.year == last.year:
+            if cursor.weekday() < 5:
+                unfinished = True
+                break
+            cursor += pd.Timedelta(days=1)
+        if not unfinished:
+            out.append(last)
+    return out
+
+
+def load_monthly_state() -> dict:
+    packed = DOCS / "monthly_winner.enc"
+    if packed.exists():
+        payload = json.loads(packed.read_text(encoding="utf-8"))
+        key = pbkdf2_hmac("sha256", page_password().encode("utf-8"), b64decode(payload["salt"]), 120000, dklen=32)
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        clear = AESGCM(key).decrypt(b64decode(payload["iv"]), b64decode(payload["data"]), None)
+        return json.loads(clear.decode("utf-8"))
+    return json.loads((HERE / "archive" / "monthly_winner.json").read_text(encoding="utf-8"))
+
+
+def save_monthly_state(state: dict) -> None:
+    path = HERE / "archive" / "monthly_winner.json"
+    path.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    salt, iv, token = encrypt_text(json.dumps(state, ensure_ascii=False), page_password())
+    (DOCS / "monthly_winner.enc").write_text(json.dumps({"salt": salt, "iv": iv, "data": token}), encoding="utf-8")
+
+
+def refresh_monthly_state(closes: dict[str, pd.Series], nq: list[str], sp: list[str]) -> dict:
+    """Keep this month's stock until a newer month-end close is in the prices."""
+    from membership import full_month_members, load_changes
+    from yearly_winners import FEE, price_on
+
+    state = load_monthly_state()
+    ends = completed_month_ends(closes["QQQ"].index)
+    signal = pd.Timestamp(state["signal"] + "-01") + pd.offsets.MonthEnd(0)
+    pending = [day for day in ends if day > signal]
+    if not pending:
+        print(f"  monthly winner: {state['signal']} still current", flush=True)
+        return state
+    pools = {}
+    changes = {}
+    for bench_name, universe in (("QQQ", nq), ("SPY", sp)):
+        changes[bench_name] = load_changes(bench_name)
+    end_pos = {day: pos for pos, day in enumerate(ends)}
+    for day in pending:
+        prev = ends[end_pos[day] - 1]
+        for bench_name, universe in (("QQQ", nq), ("SPY", sp)):
+            pools[bench_name] = full_month_members(universe, changes[bench_name], closes[bench_name].index, day)
+        for item in state["strategies"]:
+            ticker = item["current"]["ticker"]
+            series = closes.get(ticker)
+            if series is None:
+                print(f"  monthly winner missing {ticker}, keep the book", flush=True)
+                return load_monthly_state()
+            left = price_on(series, prev)
+            right = price_on(series, day)
+            if left is None or right is None:
+                print(f"  monthly winner no price for {ticker}, keep the book", flush=True)
+                return load_monthly_state()
+            ret = right / left - 1.0
+            item["months"].append({"month": f"{day.year:04d}-{day.month:02d}", "ticker": ticker, "prior_return": item["current"]["prior_return"], "return": ret})
+            scores = {}
+            for name in pools[item["bench"]]:
+                if name not in closes:
+                    continue
+                a = price_on(closes[name], prev)
+                b = price_on(closes[name], day)
+                if a is not None and b is not None:
+                    scores[name] = b / a - 1.0
+            if not scores:
+                print(f"  {item['name']} has no full-month winner, keep the book", flush=True)
+                return load_monthly_state()
+            winner, prior = max(scores.items(), key=lambda pair: pair[1])
+            turn = 0.0 if winner == ticker else 2.0
+            last = item["curve"]["equity"][-1]
+            grown = last * (1.0 + ret) * (1.0 - turn * FEE)
+            bench_series = closes[item["bench"]]
+            bench_left = price_on(bench_series, prev)
+            bench_right = price_on(bench_series, day)
+            bench_last = item["curve"]["benchmark"][-1]
+            bench_grown = bench_last * (bench_right / bench_left) if bench_left and bench_right else bench_last
+            item["curve"]["categories"].append(f"{day.year:04d}-{day.month:02d}")
+            item["curve"]["equity"].append(round(float(grown), 4))
+            item["curve"]["benchmark"].append(round(float(bench_grown), 4))
+            start = pd.Timestamp(item["curve"]["categories"][0] + "-01")
+            years = max((day - start).days / 365.25, 1e-9)
+            total = grown / item["curve"]["equity"][0] - 1.0
+            item["metrics"]["cagr"] = (1.0 + total) ** (1.0 / years) - 1.0
+            item["metrics"]["total"] = total
+            peak = max(item["curve"]["equity"])
+            item["metrics"]["max_dd"] = min(item["metrics"]["max_dd"], grown / peak - 1.0)
+            item["current"] = {
+                "ticker": winner,
+                "prior_return": float(prior),
+                "signal": f"{day.year:04d}-{day.month:02d}",
+                "hold_until": f"{(day + pd.offsets.MonthBegin(1)).year}年{(day + pd.offsets.MonthBegin(1)).month}月最后一个交易日收盘",
+            }
+            print(f"  {item['name']} {day.date()} held {ticker} {ret*100:.1f}% -> {winner}", flush=True)
+        state["signal"] = f"{day.year:04d}-{day.month:02d}"
+    save_monthly_state(state)
+    return state
+
+
 def main() -> None:
     print("universes", flush=True)
     nq = nasdaq100()
@@ -602,6 +751,7 @@ def main() -> None:
     sp_book = book("标普500", "SPY", sp, closes, held_day, preview_day)
     state = refresh_yearly_state(closes, nq, sp)
     yearly = state["strategies"]
+    monthly = refresh_monthly_state(closes, nq, sp)["strategies"]
     for item in yearly:
         print(
             f"  {item['name']}: CAGR={item['metrics']['cagr']*100:.1f}% "
@@ -624,6 +774,7 @@ def main() -> None:
         "qqq": qqq,
         "sp": sp_book,
         "yearly": yearly,
+        "monthly": monthly,
     }
     (DOCS / "index.html").write_text(render(payload), encoding="utf-8")
     stale = DOCS / "picks.json"
